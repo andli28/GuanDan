@@ -119,43 +119,51 @@ class GuanDanGame:
         num_cards = len(cards)
         counts = Counter(c.value for c in cards)
         values = sorted(counts.keys())
+        is_straight = len(values) == num_cards and (values[-1] - values[0] == num_cards - 1)
 
         # Joker Bomb
         if num_cards == 2 and {16, 17} == set(c.value for c in cards):
-            return 'joker_bomb', 100, 2 # Highest rank
+            return 'joker_bomb', 1000, 2
 
-        # Straight Flush
         is_flush = len(set(c.suit for c in cards)) == 1
-        is_straight = len(values) == num_cards and (values[-1] - values[0] == num_cards - 1)
+
+        # Straight Flush (is a type of bomb)
         if num_cards == 5 and is_straight and is_flush:
-            return 'straight_flush', 20 + values[0], 5
+            return 'straight_flush', 500 + values[-1], 5
 
         # Bomb
         if num_cards >= 4 and len(counts) == 1:
-            return 'bomb', 10 + values[0], num_cards
+            base_rank = 0
+            if num_cards == 4:
+                base_rank = 300
+            elif num_cards == 5:
+                base_rank = 400
+            else: # 6+ cards
+                base_rank = num_cards * 100
+            return 'bomb', base_rank + values[0], num_cards
 
         # Single
         if num_cards == 1:
             return 'single', values[0], 1
         # Pair
         if num_cards == 2 and len(counts) == 1:
-            return 'pair', values[0], 2
+            return 'pair', 20 + values[0], 2
         # Triple
         if num_cards == 3 and len(counts) == 1:
-            return 'triple', values[0], 3
+            return 'triple', 40 + values[0], 3
         # Full House
         if num_cards == 5 and sorted(counts.values()) == [2, 3]:
             triple_val = [v for v, c in counts.items() if c == 3][0]
-            return 'full_house', triple_val, 5
+            return 'full_house', 60 + triple_val, 5
         # Straight
         if num_cards == 5 and is_straight:
-             return 'straight', values[-1], 5
+             return 'straight', 80 + values[-1], 5
         # Tube (3 consecutive pairs)
         if num_cards == 6 and len(counts) == 3 and all(c == 2 for c in counts.values()) and (values[2] - values[0] == 2):
-            return 'tube', values[-1], 6
+            return 'tube', 100 + values[-1], 6
         # Plate (2 consecutive triples)
         if num_cards == 6 and len(counts) == 2 and all(c == 3 for c in counts.values()) and (values[1] - values[0] == 1):
-            return 'plate', values[-1], 6
+            return 'plate', 120 + values[-1], 6
 
         return None, 0, 0 # Invalid combination
 
@@ -174,12 +182,19 @@ class GuanDanGame:
 
         last_play_type, last_play_rank, last_play_len = self.get_combination_details(last_play)
 
+        is_play_bomb = play_type in ['bomb', 'straight_flush', 'joker_bomb']
+        is_last_play_bomb = last_play_type in ['bomb', 'straight_flush', 'joker_bomb']
+
         # A bomb can beat any non-bomb.
-        if 'bomb' in play_type:
-            if 'bomb' not in last_play_type:
-                return True
-            # Bomb vs Bomb: more cards win, or higher rank if same number of cards.
-            return play_len > last_play_len or (play_len == last_play_len and play_rank > last_play_rank)
+        if is_play_bomb and not is_last_play_bomb:
+            return True
+
+        # if play is not a bomb, it cannot beat a bomb.
+        if not is_play_bomb and is_last_play_bomb:
+            return False
+
+        if is_play_bomb and is_last_play_bomb:
+            return play_rank > last_play_rank
 
         # For non-bombs, types must match.
         if play_type != last_play_type:
@@ -220,6 +235,13 @@ class GuanDanGame:
     def update_levels(self, rankings):
         """Updates team levels based on finishing order."""
         winner = rankings[0]
+        winning_team = winner.team
+
+        # Check for game win condition
+        if self.teams[winning_team]['level'] == 14: # 'Ace' level
+             print(f"\n!!!!!!!!!! TEAM {winning_team} WINS THE GAME !!!!!!!!!!")
+             return True
+
         partner = next(p for p in self.players if p.team == winner.team and p != winner)
         
         partner_rank = rankings.index(partner)
@@ -231,42 +253,91 @@ class GuanDanGame:
         elif partner_rank == 3: # 1st and 4th
             level_up = 1
 
-        winning_team = winner.team
-        self.teams[winning_team]['level'] += level_up
+        current_level = self.teams[winning_team]['level']
+        new_level = min(current_level + level_up, 14) # Cap level at Ace (14)
+
+        self.teams[winning_team]['level'] = new_level
         print(f"Team {winning_team} goes up by {level_up} levels to Level {self.teams[winning_team]['level']}.")
         
-        # Check for game win
-        if self.teams[winning_team]['level'] > 14: # Passed Ace
-             print(f"\n!!!!!!!!!! TEAM {winning_team} WINS THE GAME !!!!!!!!!!")
-             return True
         return False
 
 
 class SimpleAgent(Player):
-    """A basic agent that finds the first valid move it can play."""
+    """A basic agent that finds the best valid move it can play."""
     def find_best_play(self, game):
         """Finds the lowest-ranking valid play from its hand."""
-        # This is a very naive strategy. A real agent would be much more complex.
         
-        # Try to find a valid single card play first, from smallest to largest
-        for card in self.hand:
-            play = [card]
-            if game.is_valid_play(play):
-                return play
-        
-        # This is where you would add logic to find pairs, straights, bombs etc.
-        # For simplicity, this agent only looks for single card plays or passes.
-        # It iterates through all possible combinations of cards in hand.
-        # WARNING: This is computationally expensive for large hands!
-        for i in range(2, 6): # Check for combinations of size 2 to 5
-             for combo in combinations(self.hand, i):
-                 play = list(combo)
-                 if game.is_valid_play(play):
-                     # A real agent would not just play the first thing it finds.
-                     # It would evaluate which combination is best to play.
-                     return play
+        possible_plays = []
 
-        return [] # Return empty list to pass
+        # Group cards by value and suit for easy combination generation
+        cards_by_value = {}
+        for card in self.hand:
+            cards_by_value.setdefault(card.value, []).append(card)
+
+        # 1. Generate basic combinations (Singles, Pairs, Triples, Bombs)
+        triples = []
+        pairs = []
+        for value, cards in cards_by_value.items():
+            # Singles
+            possible_plays.append([cards[0]])
+            if len(cards) >= 2:
+                pairs.append(cards[0:2])
+                possible_plays.append(cards[0:2])
+            if len(cards) >= 3:
+                triples.append(cards[0:3])
+                possible_plays.append(cards[0:3])
+            if len(cards) >= 4:
+                possible_plays.append(cards)
+
+        # 2. Generate complex combinations
+        # Full Houses
+        for t in triples:
+            for p in pairs:
+                if t[0].value != p[0].value:
+                    possible_plays.append(t + p)
+
+        # Straights, Tubes, Plates, and Straight Flushes
+        unique_values = sorted(cards_by_value.keys())
+        for i in range(len(unique_values) - 4):
+            # Straights
+            if unique_values[i+4] - unique_values[i] == 4:
+                straight_cards = [cards_by_value[v][0] for v in unique_values[i:i+5]]
+                possible_plays.append(straight_cards)
+                # Straight Flushes
+                if len(set(c.suit for c in straight_cards)) == 1:
+                    possible_plays.append(straight_cards)
+        
+        # Tubes
+        for i in range(len(pairs) - 2):
+            p1, p2, p3 = pairs[i], pairs[i+1], pairs[i+2]
+            if p2[0].value - p1[0].value == 1 and p3[0].value - p2[0].value == 1:
+                possible_plays.append(p1 + p2 + p3)
+
+        # Plates
+        for i in range(len(triples) - 1):
+            t1, t2 = triples[i], triples[i+1]
+            if t2[0].value - t1[0].value == 1:
+                possible_plays.append(t1 + t2)
+
+        # Joker Bomb
+        jokers = [c for c in self.hand if c.suit == 'Joker']
+        if len(jokers) == 2:
+            possible_plays.append(jokers)
+
+        # 3. Filter for valid plays and find the best one
+        valid_plays = []
+        for play in possible_plays:
+            # The get_combination_details function is the source of truth for validity
+            play_type, rank, _ = game.get_combination_details(play)
+            if play_type and game.is_valid_play(play):
+                valid_plays.append((rank, play))
+
+        if not valid_plays:
+            return [] # Pass
+
+        # Sort by rank and return the lowest-ranking play
+        valid_plays.sort(key=lambda x: x[0])
+        return valid_plays[0][1]
 
 # --- Main Game Simulation ---
 if __name__ == "__main__":
@@ -281,6 +352,7 @@ if __name__ == "__main__":
     
     game_over = False
     hand_number = 1
+    hand_winner = None
 
     while not game_over:
         print(f"\n--- Starting Hand {hand_number} ---")
@@ -294,6 +366,9 @@ if __name__ == "__main__":
         
         finish_order = []
         
+        if hand_winner:
+            game.turn_index = game.players.index(hand_winner)
+
         while len(finish_order) < 4:
             current_player = game.players[game.turn_index]
 
@@ -315,6 +390,7 @@ if __name__ == "__main__":
                 finish_order.append(current_player)
                 if len(finish_order) == 1: # First winner
                     game.declarer_team = current_player.team
+                    hand_winner = current_player
         
         print("\n--- Hand Over! ---")
         print("Finishing order:")
