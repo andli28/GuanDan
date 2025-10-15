@@ -119,20 +119,28 @@ class GuanDanGame:
         num_cards = len(cards)
         counts = Counter(c.value for c in cards)
         values = sorted(counts.keys())
+        is_straight = len(values) == num_cards and (values[-1] - values[0] == num_cards - 1)
 
         # Joker Bomb
         if num_cards == 2 and {16, 17} == set(c.value for c in cards):
-            return 'joker_bomb', 100, 2 # Highest rank
+            return 'joker_bomb', 1000, 2
 
-        # Straight Flush
         is_flush = len(set(c.suit for c in cards)) == 1
-        is_straight = len(values) == num_cards and (values[-1] - values[0] == num_cards - 1)
+
+        # Straight Flush (is a type of bomb)
         if num_cards == 5 and is_straight and is_flush:
-            return 'straight_flush', 20 + values[0], 5
+            return 'straight_flush', 500 + values[-1], 5
 
         # Bomb
         if num_cards >= 4 and len(counts) == 1:
-            return 'bomb', 10 + values[0], num_cards
+            base_rank = 0
+            if num_cards == 4:
+                base_rank = 300
+            elif num_cards == 5:
+                base_rank = 400
+            else: # 6+ cards
+                base_rank = num_cards * 100
+            return 'bomb', base_rank + values[0], num_cards
 
         # Single
         if num_cards == 1:
@@ -174,12 +182,19 @@ class GuanDanGame:
 
         last_play_type, last_play_rank, last_play_len = self.get_combination_details(last_play)
 
+        is_play_bomb = play_type in ['bomb', 'straight_flush', 'joker_bomb']
+        is_last_play_bomb = last_play_type in ['bomb', 'straight_flush', 'joker_bomb']
+
         # A bomb can beat any non-bomb.
-        if 'bomb' in play_type:
-            if 'bomb' not in last_play_type:
-                return True
-            # Bomb vs Bomb: more cards win, or higher rank if same number of cards.
-            return play_len > last_play_len or (play_len == last_play_len and play_rank > last_play_rank)
+        if is_play_bomb and not is_last_play_bomb:
+            return True
+
+        # if play is not a bomb, it cannot beat a bomb.
+        if not is_play_bomb and is_last_play_bomb:
+            return False
+
+        if is_play_bomb and is_last_play_bomb:
+            return play_rank > last_play_rank
 
         # For non-bombs, types must match.
         if play_type != last_play_type:
@@ -220,6 +235,13 @@ class GuanDanGame:
     def update_levels(self, rankings):
         """Updates team levels based on finishing order."""
         winner = rankings[0]
+        winning_team = winner.team
+
+        # Check for game win condition
+        if self.teams[winning_team]['level'] == 14: # 'Ace' level
+             print(f"\n!!!!!!!!!! TEAM {winning_team} WINS THE GAME !!!!!!!!!!")
+             return True
+
         partner = next(p for p in self.players if p.team == winner.team and p != winner)
         
         partner_rank = rankings.index(partner)
@@ -231,14 +253,12 @@ class GuanDanGame:
         elif partner_rank == 3: # 1st and 4th
             level_up = 1
 
-        winning_team = winner.team
-        self.teams[winning_team]['level'] += level_up
+        current_level = self.teams[winning_team]['level']
+        new_level = min(current_level + level_up, 14) # Cap level at Ace (14)
+
+        self.teams[winning_team]['level'] = new_level
         print(f"Team {winning_team} goes up by {level_up} levels to Level {self.teams[winning_team]['level']}.")
         
-        # Check for game win
-        if self.teams[winning_team]['level'] > 14: # Passed Ace
-             print(f"\n!!!!!!!!!! TEAM {winning_team} WINS THE GAME !!!!!!!!!!")
-             return True
         return False
 
 
@@ -281,6 +301,7 @@ if __name__ == "__main__":
     
     game_over = False
     hand_number = 1
+    hand_winner = None
 
     while not game_over:
         print(f"\n--- Starting Hand {hand_number} ---")
@@ -294,6 +315,9 @@ if __name__ == "__main__":
         
         finish_order = []
         
+        if hand_winner:
+            game.turn_index = game.players.index(hand_winner)
+
         while len(finish_order) < 4:
             current_player = game.players[game.turn_index]
 
@@ -315,6 +339,7 @@ if __name__ == "__main__":
                 finish_order.append(current_player)
                 if len(finish_order) == 1: # First winner
                     game.declarer_team = current_player.team
+                    hand_winner = current_player
         
         print("\n--- Hand Over! ---")
         print("Finishing order:")
