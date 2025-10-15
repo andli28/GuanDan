@@ -1,0 +1,325 @@
+import random
+from collections import Counter
+from itertools import combinations
+
+# --- Card and Deck Configuration ---
+
+SUITS = ['Hearts', 'Diamonds', 'Clubs', 'Spades']
+RANKS = {
+    '2': 2, '3': 3, '4': 4, '5': 5, '6': 6, '7': 7, '8': 8, '9': 9, '10': 10,
+    'J': 11, 'Q': 12, 'K': 13, 'A': 14
+}
+# Special card values are handled dynamically based on the game's level.
+# Red Joker > Black Joker > Level Card > Ace ...
+JOKER_RANKS = {'Black Joker': 16, 'Red Joker': 17}
+
+class Card:
+    """Represents a single playing card."""
+    def __init__(self, rank, suit):
+        self.rank_str = str(rank)
+        self.suit = suit
+        self.value = 0 # This will be set dynamically by the game based on level
+        self.is_wild = False
+
+    def __repr__(self):
+        if self.suit == 'Joker':
+            return self.rank_str
+        # Add a '*' to wild cards for easy identification
+        return f"{self.rank_str} of {self.suit}{'*' if self.is_wild else ''}"
+
+    def __lt__(self, other):
+        return self.value < other.value
+
+class Player:
+    """Represents a player in the game."""
+    def __init__(self, name, team):
+        self.name = name
+        self.team = team
+        self.hand = []
+
+    def sort_hand(self):
+        """Sorts the player's hand based on card value."""
+        self.hand.sort()
+
+    def play_cards(self, cards_to_play):
+        """Removes played cards from the player's hand."""
+        for card in cards_to_play:
+            # This removal logic is simple; more robust would be to match by value and suit
+            for i, hand_card in enumerate(self.hand):
+                if hand_card.rank_str == card.rank_str and hand_card.suit == card.suit:
+                    self.hand.pop(i)
+                    break
+        return cards_to_play
+
+class GuanDanGame:
+    """Manages the state and rules of the Guan Dan game."""
+    def __init__(self, player_names):
+        self.players = [
+            Player(player_names[0], 'A'),
+            Player(player_names[1], 'B'),
+            Player(player_names[2], 'A'),
+            Player(player_names[3], 'B')
+        ]
+        self.teams = {'A': {'level': 2}, 'B': {'level': 2}}
+        self.deck = []
+        self.current_trick = []
+        self.trick_winner = None
+        self.turn_index = 0
+        self.passes = 0
+        self.declarer_team = None
+        self.level_card_value = 0
+
+    def _create_deck(self):
+        """Creates a 108-card deck (2 standard decks + 4 jokers)."""
+        self.deck = []
+        for _ in range(2): # Two decks
+            for suit in SUITS:
+                for rank in RANKS:
+                    self.deck.append(Card(rank, suit))
+            # Add Jokers (2 per deck)
+            self.deck.append(Card('Black Joker', 'Joker'))
+            self.deck.append(Card('Red Joker', 'Joker'))
+        random.shuffle(self.deck)
+
+    def _assign_card_values(self):
+        """Assigns numeric values to cards based on the current level."""
+        # This must be called at the start of each hand.
+        # Let's assume team A is the declarer for this logic, will need to be dynamic
+        self.declarer_team = self.declarer_team or 'A' # Default to A for first hand
+        level = self.teams[self.declarer_team]['level']
+        self.level_card_value = 15 # Static value for the level card
+
+        for card in self.deck:
+            if card.suit == 'Joker':
+                card.value = JOKER_RANKS[card.rank_str]
+            elif RANKS.get(card.rank_str) == level:
+                card.value = self.level_card_value
+                if card.suit == 'Hearts':
+                    card.is_wild = True
+            else:
+                card.value = RANKS.get(card.rank_str, 0)
+
+    def deal(self):
+        """Deals 27 cards to each of the four players."""
+        self._create_deck()
+        self._assign_card_values()
+        for i in range(27):
+            for player in self.players:
+                player.hand.append(self.deck.pop())
+        for player in self.players:
+            player.sort_hand()
+
+    def get_combination_details(self, cards):
+        """Analyzes a combination of cards and returns its type, rank, and length."""
+        if not cards:
+            return None, 0, 0
+
+        # This is a simplified validation logic. Wild cards add significant complexity.
+        # For now, we ignore wild cards in combination detection.
+        num_cards = len(cards)
+        counts = Counter(c.value for c in cards)
+        values = sorted(counts.keys())
+
+        # Joker Bomb
+        if num_cards == 2 and {16, 17} == set(c.value for c in cards):
+            return 'joker_bomb', 100, 2 # Highest rank
+
+        # Straight Flush
+        is_flush = len(set(c.suit for c in cards)) == 1
+        is_straight = len(values) == num_cards and (values[-1] - values[0] == num_cards - 1)
+        if num_cards == 5 and is_straight and is_flush:
+            return 'straight_flush', 20 + values[0], 5
+
+        # Bomb
+        if num_cards >= 4 and len(counts) == 1:
+            return 'bomb', 10 + values[0], num_cards
+
+        # Single
+        if num_cards == 1:
+            return 'single', values[0], 1
+        # Pair
+        if num_cards == 2 and len(counts) == 1:
+            return 'pair', values[0], 2
+        # Triple
+        if num_cards == 3 and len(counts) == 1:
+            return 'triple', values[0], 3
+        # Full House
+        if num_cards == 5 and sorted(counts.values()) == [2, 3]:
+            triple_val = [v for v, c in counts.items() if c == 3][0]
+            return 'full_house', triple_val, 5
+        # Straight
+        if num_cards == 5 and is_straight:
+             return 'straight', values[-1], 5
+        # Tube (3 consecutive pairs)
+        if num_cards == 6 and len(counts) == 3 and all(c == 2 for c in counts.values()) and (values[2] - values[0] == 2):
+            return 'tube', values[-1], 6
+        # Plate (2 consecutive triples)
+        if num_cards == 6 and len(counts) == 2 and all(c == 3 for c in counts.values()) and (values[1] - values[0] == 1):
+            return 'plate', values[-1], 6
+
+        return None, 0, 0 # Invalid combination
+
+    def is_valid_play(self, play):
+        """Checks if a play is valid against the current trick."""
+        play_type, play_rank, play_len = self.get_combination_details(play)
+        last_play = self.current_trick[-1] if self.current_trick else None
+
+        if play_type is None:
+            print("Debug: Invalid combination type.")
+            return False
+
+        # If the table is empty, any valid combination is fine.
+        if last_play is None:
+            return True
+
+        last_play_type, last_play_rank, last_play_len = self.get_combination_details(last_play)
+
+        # A bomb can beat any non-bomb.
+        if 'bomb' in play_type:
+            if 'bomb' not in last_play_type:
+                return True
+            # Bomb vs Bomb: more cards win, or higher rank if same number of cards.
+            return play_len > last_play_len or (play_len == last_play_len and play_rank > last_play_rank)
+
+        # For non-bombs, types must match.
+        if play_type != last_play_type:
+            return False
+
+        # Rank must be higher.
+        return play_rank > last_play_rank
+
+    def play_turn(self, player_index, cards):
+        """Processes a single player's turn."""
+        player = self.players[player_index]
+        if not cards: # Player passes
+            self.passes += 1
+            print(f"{player.name} passes.")
+            if self.passes >= 3:
+                print(f"--- {self.trick_winner.name} wins the trick and starts a new one. ---")
+                self.current_trick = []
+                self.passes = 0
+                self.turn_index = self.players.index(self.trick_winner)
+                return "TRICK_WON"
+            self.turn_index = (self.turn_index + 1) % 4
+            return "PASS"
+
+        if self.is_valid_play(cards):
+            player.play_cards(cards)
+            self.current_trick.append(cards)
+            self.trick_winner = player
+            self.passes = 0
+            print(f"{player.name} plays: {[str(c) for c in cards]}")
+            self.turn_index = (self.turn_index + 1) % 4
+            if not player.hand:
+                return "HAND_WON"
+            return "PLAYED"
+        else:
+            print(f"Invalid play by {player.name}. Try again.")
+            return "INVALID"
+
+    def update_levels(self, rankings):
+        """Updates team levels based on finishing order."""
+        winner = rankings[0]
+        partner = next(p for p in self.players if p.team == winner.team and p != winner)
+        
+        partner_rank = rankings.index(partner)
+        level_up = 0
+        if partner_rank == 1: # 1st and 2nd
+            level_up = 3
+        elif partner_rank == 2: # 1st and 3rd
+            level_up = 2
+        elif partner_rank == 3: # 1st and 4th
+            level_up = 1
+
+        winning_team = winner.team
+        self.teams[winning_team]['level'] += level_up
+        print(f"Team {winning_team} goes up by {level_up} levels to Level {self.teams[winning_team]['level']}.")
+        
+        # Check for game win
+        if self.teams[winning_team]['level'] > 14: # Passed Ace
+             print(f"\n!!!!!!!!!! TEAM {winning_team} WINS THE GAME !!!!!!!!!!")
+             return True
+        return False
+
+
+class SimpleAgent(Player):
+    """A basic agent that finds the first valid move it can play."""
+    def find_best_play(self, game):
+        """Finds the lowest-ranking valid play from its hand."""
+        # This is a very naive strategy. A real agent would be much more complex.
+        
+        # Try to find a valid single card play first, from smallest to largest
+        for card in self.hand:
+            play = [card]
+            if game.is_valid_play(play):
+                return play
+        
+        # This is where you would add logic to find pairs, straights, bombs etc.
+        # For simplicity, this agent only looks for single card plays or passes.
+        # It iterates through all possible combinations of cards in hand.
+        # WARNING: This is computationally expensive for large hands!
+        for i in range(2, 6): # Check for combinations of size 2 to 5
+             for combo in combinations(self.hand, i):
+                 play = list(combo)
+                 if game.is_valid_play(play):
+                     # A real agent would not just play the first thing it finds.
+                     # It would evaluate which combination is best to play.
+                     return play
+
+        return [] # Return empty list to pass
+
+# --- Main Game Simulation ---
+if __name__ == "__main__":
+    player_names = ["Agent 1 (A)", "Agent 2 (B)", "Agent 3 (A)", "Agent 4 (B)"]
+    game = GuanDanGame(player_names)
+    
+    # Replace Player with SimpleAgent
+    game.players[0] = SimpleAgent(player_names[0], 'A')
+    game.players[1] = SimpleAgent(player_names[1], 'B')
+    game.players[2] = SimpleAgent(player_names[2], 'A')
+    game.players[3] = SimpleAgent(player_names[3], 'B')
+    
+    game_over = False
+    hand_number = 1
+
+    while not game_over:
+        print(f"\n--- Starting Hand {hand_number} ---")
+        print(f"Team A is on Level {game.teams['A']['level']}")
+        print(f"Team B is on Level {game.teams['B']['level']}")
+        
+        game.deal()
+        
+        for p in game.players:
+            print(f"{p.name} has {len(p.hand)} cards.")
+        
+        finish_order = []
+        
+        while len(finish_order) < 4:
+            current_player = game.players[game.turn_index]
+
+            # If player is already out, skip them
+            if current_player in finish_order:
+                game.turn_index = (game.turn_index + 1) % 4
+                continue
+
+            print(f"\nIt's {current_player.name}'s turn. Hand size: {len(current_player.hand)}")
+            if game.current_trick:
+                 print(f"Current play on table: {[str(c) for c in game.current_trick[-1]]}")
+
+            # Agent makes a move
+            play = current_player.find_best_play(game)
+            result = game.play_turn(game.turn_index, play)
+            
+            if result == "HAND_WON":
+                print(f"****** {current_player.name} has finished! ******")
+                finish_order.append(current_player)
+                if len(finish_order) == 1: # First winner
+                    game.declarer_team = current_player.team
+        
+        print("\n--- Hand Over! ---")
+        print("Finishing order:")
+        for i, p in enumerate(finish_order):
+            print(f"{i+1}. {p.name} (Team {p.team})")
+            
+        game_over = game.update_levels(finish_order)
+        hand_number += 1
