@@ -10,6 +10,14 @@ including cards, players, and the game logic itself. It manages the rules of
 Guan Dan, such as card combinations, play validation, and scoring.
 """
 
+# --- Combination Rank Constants ---
+RANK_BASE_TUBE = 100
+RANK_BASE_PLATE = 120
+RANK_MULTIPLIER_BOMB_6_PLUS = 100
+RANK_BASE_BOMB_4 = 300
+RANK_BASE_BOMB_5 = 400
+RANK_BASE_STRAIGHT_FLUSH = 500
+RANK_JOKER_BOMB = 1000
 
 # --- Card and Deck Configuration ---
 
@@ -233,23 +241,23 @@ class GuanDanGame:
 
         # Joker Bomb
         if num_cards == 2 and {16, 17} == set(c.value for c in cards):
-            return 'joker_bomb', 1000, 2
+            return 'joker_bomb', RANK_JOKER_BOMB, 2
 
         is_flush = len(set(c.suit for c in cards)) == 1
 
         # Straight Flush (is a type of bomb)
         if num_cards == 5 and is_straight and is_flush:
-            return 'straight_flush', 500 + values[-1], 5
+            return 'straight_flush', RANK_BASE_STRAIGHT_FLUSH + values[-1], 5
 
         # Bomb
         if num_cards >= 4 and len(counts) == 1:
             base_rank = 0
             if num_cards == 4:
-                base_rank = 300
+                base_rank = RANK_BASE_BOMB_4
             elif num_cards == 5:
-                base_rank = 400
+                base_rank = RANK_BASE_BOMB_5
             else: # 6+ cards
-                base_rank = num_cards * 100
+                base_rank = num_cards * RANK_MULTIPLIER_BOMB_6_PLUS
             return 'bomb', base_rank + values[0], num_cards
 
         # Single
@@ -270,10 +278,10 @@ class GuanDanGame:
              return 'straight', 80 + values[-1], 5
         # Tube (3 consecutive pairs)
         if num_cards == 6 and len(counts) == 3 and all(c == 2 for c in counts.values()) and (values[2] - values[0] == 2):
-            return 'tube', 100 + values[-1], 6
+            return 'tube', RANK_BASE_TUBE + values[-1], 6
         # Plate (2 consecutive triples)
         if num_cards == 6 and len(counts) == 2 and all(c == 3 for c in counts.values()) and (values[1] - values[0] == 1):
-            return 'plate', 120 + values[-1], 6
+            return 'plate', RANK_BASE_PLATE + values[-1], 6
 
         return None, 0, 0 # Invalid combination
 
