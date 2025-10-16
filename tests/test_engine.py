@@ -107,7 +107,7 @@ class TestGuanDanGame(GuanDanTestBase):
 
         with self.subTest(msg="5-Card Bomb"):
             # This test is only possible with a double deck
-            combo = self._get_cards('A', 'Hearts', 2) + self._get_cards('A', 'Spades', 2) + self._get_cards('A', 'Clubs', 1)
+            combo = [c for c in self.game.deck if c.rank_str == 'A'][:5]
             self.assertEqual(self.game.get_combination_details(combo), ('bomb', 400 + 14, 5))
 
     def test_is_valid_play_on_empty_table(self):
