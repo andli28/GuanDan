@@ -5,7 +5,7 @@ description = "A simple simulation/engine for the Guan Dan card game."
 readme = "README.md"
 requires-python = ">=3.9"
 license = { text = "MIT" }
-authors = [ { name = "andli", email = "" } ]
+authors = [ { name = "andli", email = "achyt28@gmail.com" } ]
 
 dependencies = []
 
