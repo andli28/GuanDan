@@ -340,7 +340,7 @@ class SimpleAgent(Player):
         return valid_plays[0][1]
 
 # --- Main Game Simulation ---
-if __name__ == "__main__":
+def main():
     player_names = ["Agent 1 (A)", "Agent 2 (B)", "Agent 3 (A)", "Agent 4 (B)"]
     game = GuanDanGame(player_names)
     
@@ -380,12 +380,6 @@ if __name__ == "__main__":
             print(f"\nIt's {current_player.name}'s turn. Hand size: {len(current_player.hand)}")
             if game.current_trick:
                  print(f"Current play on table: {[str(c) for c in game.current_trick[-1]]}")
-            
-            # Print current player's hand with card frequencies
-            hand_counter = Counter(str(card) for card in current_player.hand)
-            print(f"{current_player.name}'s hand:")
-            for card_str, freq in hand_counter.items():
-                print(f"  {card_str}: {freq}")
 
             # Agent makes a move
             play = current_player.find_best_play(game)
@@ -397,7 +391,7 @@ if __name__ == "__main__":
                 if len(finish_order) == 1: # First winner
                     game.declarer_team = current_player.team
                     hand_winner = current_player
-        
+
         print("\n--- Hand Over! ---")
         print("Finishing order:")
         for i, p in enumerate(finish_order):
@@ -405,3 +399,7 @@ if __name__ == "__main__":
             
         game_over = game.update_levels(finish_order)
         hand_number += 1
+
+
+if __name__ == "__main__":
+    main()
