@@ -190,15 +190,15 @@ class TestGuanDanGame(GuanDanTestBase):
         self.assertEqual(self.game.teams['A']['level'], 10)
 
     def test_update_levels_capped_at_14(self):
-        p1, p3 = self.game.players[0], self.game.players[2]
-        rankings = [p1, p3]
+        p1, p2, p3, p4 = self.game.players[0], self.game.players[1], self.game.players[2], self.game.players[3]
+        rankings = [p1, p3, p2, p4]
         self.game.teams['A']['level'] = 12
         self.game.update_levels(rankings)
         self.assertEqual(self.game.teams['A']['level'], 14)
 
     def test_update_levels_wins_game(self):
-        p1, p3 = self.game.players[0], self.game.players[2]
-        rankings = [p1, p3]
+        p1, p2, p3, p4 = self.game.players[0], self.game.players[1], self.game.players[2], self.game.players[3]
+        rankings = [p1, p3, p2, p4]
         self.game.teams['A']['level'] = 14
         game_over = self.game.update_levels(rankings)
         self.assertTrue(game_over)
