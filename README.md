@@ -20,7 +20,7 @@ For a detailed explanation of the game's rules, please see the [rules.md](rules.
 1.  **Clone the repository:**
     ```bash
     git clone git@github.com:andli28/GuanDan.git
-    cd guan-dan-engine
+    cd GuanDan
     ```
 
 2.  **Create and activate a virtual environment:**
