@@ -79,7 +79,7 @@ class TestGuanDanGame(GuanDanTestBase):
         with self.subTest(msg="Plate"):
             combo = [
                 self._get_card('J', 'Hearts'), self._get_card('J', 'Spades'), self._get_card('J', 'Clubs'),
-                self._get_cards('Q', 'Diamonds', 1)[0], self._get_cards('Q', 'Clubs', 1)[0], self._get_cards('Q', 'Spades', 1)[0]
+                self._get_card('Q', 'Diamonds'), self._get_card('Q', 'Clubs'), self._get_card('Q', 'Spades')
             ]
             self.assertEqual(self.game.get_combination_details(combo), ('plate', 120 + 12, 6))
 
@@ -152,35 +152,35 @@ class TestGuanDanGame(GuanDanTestBase):
         self.assertFalse(self.game.is_valid_play(play))
 
     def test_update_levels_1st_and_2nd(self):
-        p1, p2, p3, p4 = self.game.players[0], self.game.players[1], self.game.players[2], self.game.players[3]
+        p1, p2, p3, p4 = self.game.players
         rankings = [p1, p3, p2, p4]
         self.game.teams['A']['level'] = 5
         self.game.update_levels(rankings)
         self.assertEqual(self.game.teams['A']['level'], 8)
 
     def test_update_levels_1st_and_3rd(self):
-        p1, p2, p3, p4 = self.game.players[0], self.game.players[1], self.game.players[2], self.game.players[3]
+        p1, p2, p3, p4 = self.game.players
         rankings = [p2, p1, p4, p3]
         self.game.teams['B']['level'] = 3
         self.game.update_levels(rankings)
         self.assertEqual(self.game.teams['B']['level'], 5)
 
     def test_update_levels_1st_and_4th(self):
-        p1, p2, p3, p4 = self.game.players[0], self.game.players[1], self.game.players[2], self.game.players[3]
+        p1, p2, p3, p4 = self.game.players
         rankings = [p1, p2, p4, p3]
         self.game.teams['A']['level'] = 9
         self.game.update_levels(rankings)
         self.assertEqual(self.game.teams['A']['level'], 10)
 
     def test_update_levels_capped_at_14(self):
-        p1, p2, p3, p4 = self.game.players[0], self.game.players[1], self.game.players[2], self.game.players[3]
+        p1, p2, p3, p4 = self.game.players
         rankings = [p1, p3, p2, p4]
         self.game.teams['A']['level'] = 12
         self.game.update_levels(rankings)
         self.assertEqual(self.game.teams['A']['level'], 14)
 
     def test_update_levels_wins_game(self):
-        p1, p2, p3, p4 = self.game.players[0], self.game.players[1], self.game.players[2], self.game.players[3]
+        p1, p2, p3, p4 = self.game.players
         rankings = [p1, p3, p2, p4]
         self.game.teams['A']['level'] = 14
         game_over = self.game.update_levels(rankings)
