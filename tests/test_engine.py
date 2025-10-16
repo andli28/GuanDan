@@ -38,44 +38,29 @@ class TestGuanDanGame(GuanDanTestBase):
     def test_get_combination_details(self):
         with self.subTest(msg="Single"):
             combo = [self._get_card('3', 'Hearts')]
-            combo_type, rank, length = self.game.get_combination_details(combo)
-            self.assertEqual(combo_type, 'single')
-            self.assertEqual(length, 1)
-            self.assertEqual(rank, 3)
+            self.assertEqual(self.game.get_combination_details(combo), ('single', 3, 1))
 
         with self.subTest(msg="Pair"):
             combo = [self._get_card('4', 'Hearts'), self._get_card('4', 'Spades')]
-            combo_type, rank, length = self.game.get_combination_details(combo)
-            self.assertEqual(combo_type, 'pair')
-            self.assertEqual(length, 2)
-            self.assertEqual(rank, 20 + 4)
+            self.assertEqual(self.game.get_combination_details(combo), ('pair', 20 + 4, 2))
 
         with self.subTest(msg="Triple"):
             combo = [self._get_card('5', 'Hearts'), self._get_card('5', 'Spades'), self._get_card('5', 'Clubs')]
-            combo_type, rank, length = self.game.get_combination_details(combo)
-            self.assertEqual(combo_type, 'triple')
-            self.assertEqual(length, 3)
-            self.assertEqual(rank, 40 + 5)
+            self.assertEqual(self.game.get_combination_details(combo), ('triple', 40 + 5, 3))
 
         with self.subTest(msg="Full House"):
             combo = [
                 self._get_card('6', 'Hearts'), self._get_card('6', 'Spades'), self._get_card('6', 'Clubs'),
                 self._get_card('7', 'Diamonds'), self._get_card('7', 'Clubs')
             ]
-            combo_type, rank, length = self.game.get_combination_details(combo)
-            self.assertEqual(combo_type, 'full_house')
-            self.assertEqual(length, 5)
-            self.assertEqual(rank, 60 + 6)
+            self.assertEqual(self.game.get_combination_details(combo), ('full_house', 60 + 6, 5))
 
         with self.subTest(msg="Straight"):
             combo = [
                 self._get_card('3', 'Hearts'), self._get_card('4', 'Spades'), self._get_card('5', 'Clubs'),
                 self._get_card('6', 'Diamonds'), self._get_card('7', 'Clubs')
             ]
-            combo_type, rank, length = self.game.get_combination_details(combo)
-            self.assertEqual(combo_type, 'straight')
-            self.assertEqual(length, 5)
-            self.assertEqual(rank, 80 + 7)
+            self.assertEqual(self.game.get_combination_details(combo), ('straight', 80 + 7, 5))
 
         with self.subTest(msg="Tube"):
             combo = [
@@ -83,62 +68,41 @@ class TestGuanDanGame(GuanDanTestBase):
                 self._get_card('9', 'Clubs'), self._get_card('9', 'Diamonds'),
                 self._get_card('10', 'Hearts'), self._get_card('10', 'Clubs')
             ]
-            combo_type, rank, length = self.game.get_combination_details(combo)
-            self.assertEqual(combo_type, 'tube')
-            self.assertEqual(length, 6)
-            self.assertEqual(rank, 100 + 10)
+            self.assertEqual(self.game.get_combination_details(combo), ('tube', 100 + 10, 6))
 
         with self.subTest(msg="Plate"):
             combo = [
                 self._get_card('J', 'Hearts'), self._get_card('J', 'Spades'), self._get_card('J', 'Clubs'),
                 self._get_cards('Q', 'Diamonds', 1)[0], self._get_cards('Q', 'Clubs', 1)[0], self._get_cards('Q', 'Spades', 1)[0]
             ]
-            combo_type, rank, length = self.game.get_combination_details(combo)
-            self.assertEqual(combo_type, 'plate')
-            self.assertEqual(length, 6)
-            self.assertEqual(rank, 120 + 12)
+            self.assertEqual(self.game.get_combination_details(combo), ('plate', 120 + 12, 6))
 
         with self.subTest(msg="Bomb"):
             combo = [
                 self._get_card('A', 'Hearts'), self._get_card('A', 'Spades'),
                 self._get_card('A', 'Clubs'), self._get_card('A', 'Diamonds')
             ]
-            combo_type, rank, length = self.game.get_combination_details(combo)
-            self.assertEqual(combo_type, 'bomb')
-            self.assertEqual(length, 4)
-            self.assertEqual(rank, 300 + 14)
+            self.assertEqual(self.game.get_combination_details(combo), ('bomb', 300 + 14, 4))
 
         with self.subTest(msg="Straight Flush"):
             combo = [
                 self._get_card('3', 'Spades'), self._get_card('4', 'Spades'), self._get_card('5', 'Spades'),
                 self._get_card('6', 'Spades'), self._get_card('7', 'Spades')
             ]
-            combo_type, rank, length = self.game.get_combination_details(combo)
-            self.assertEqual(combo_type, 'straight_flush')
-            self.assertEqual(length, 5)
-            self.assertEqual(rank, 500 + 7)
+            self.assertEqual(self.game.get_combination_details(combo), ('straight_flush', 500 + 7, 5))
 
         with self.subTest(msg="Joker Bomb"):
             combo = [self._get_card('Black Joker', 'Joker'), self._get_card('Red Joker', 'Joker')]
-            combo_type, rank, length = self.game.get_combination_details(combo)
-            self.assertEqual(combo_type, 'joker_bomb')
-            self.assertEqual(length, 2)
-            self.assertEqual(rank, 1000)
+            self.assertEqual(self.game.get_combination_details(combo), ('joker_bomb', 1000, 2))
 
         with self.subTest(msg="Invalid Combination"):
             combo = [self._get_card('3', 'Hearts'), self._get_card('5', 'Spades')]
-            combo_type, rank, length = self.game.get_combination_details(combo)
-            self.assertIsNone(combo_type)
-            self.assertEqual(rank, 0)
-            self.assertEqual(length, 0)
+            self.assertEqual(self.game.get_combination_details(combo), (None, 0, 0))
 
         with self.subTest(msg="5-Card Bomb"):
             # This test is only possible with a double deck
             combo = self._get_cards('A', 'Hearts', 2) + self._get_cards('A', 'Spades', 2) + self._get_cards('A', 'Clubs', 1)
-            combo_type, rank, length = self.game.get_combination_details(combo)
-            self.assertEqual(combo_type, 'bomb')
-            self.assertEqual(length, 5)
-            self.assertEqual(rank, 400 + 14)
+            self.assertEqual(self.game.get_combination_details(combo), ('bomb', 400 + 14, 5))
 
     def test_is_valid_play_on_empty_table(self):
         play = [self._get_card('5', 'Hearts')]
