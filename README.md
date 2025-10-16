@@ -62,12 +62,12 @@ The project includes a suite of unit tests to ensure the game logic is correct. 
 
 Using `uv`:
 ```bash
-uv run python -m unittest discover
+uv run python -m unittest discover tests
 ```
 
 Using `python`:
 ```bash
-python -m unittest discover
+python -m unittest discover tests
 ```
 
 ## Project Structure
