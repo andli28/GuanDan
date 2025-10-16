@@ -12,6 +12,11 @@ class GuanDanTestBase(unittest.TestCase):
         self.game.deck = self._create_test_deck()
         self.game._assign_card_values()
 
+        # Pre-process the deck for efficient O(1) card lookups in tests
+        self.card_lookup = {}
+        for card in self.game.deck:
+            self.card_lookup.setdefault((card.rank_str, card.suit), []).append(card)
+
     def _create_test_deck(self):
         """Creates a predictable double deck for testing purposes."""
         deck = []
@@ -24,8 +29,9 @@ class GuanDanTestBase(unittest.TestCase):
         return deck
 
     def _get_cards(self, rank_str, suit, count=1):
-        """Finds and returns a specific number of cards from the test deck."""
-        cards = [c for c in self.game.deck if c.rank_str == rank_str and c.suit == suit]
+        """Finds and returns a specific number of cards from the test deck using the lookup."""
+        key = (rank_str, suit)
+        cards = self.card_lookup.get(key, [])
         if len(cards) < count:
             self.fail(f"Could not find {count} cards of {rank_str} of {suit} in test deck.")
         return cards[:count]
