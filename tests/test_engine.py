@@ -1,6 +1,10 @@
 import unittest
 
-from src.engine import Card, GuanDanGame, SimpleAgent, SUITS, RANKS
+from src.engine import (
+    Card, GuanDanGame, SimpleAgent, SUITS, RANKS,
+    RANK_BASE_TUBE, RANK_BASE_PLATE, RANK_MULTIPLIER_BOMB_6_PLUS, RANK_BASE_BOMB_4, RANK_BASE_BOMB_5,
+    RANK_BASE_STRAIGHT_FLUSH, RANK_JOKER_BOMB
+)
 
 class GuanDanTestBase(unittest.TestCase):
     def setUp(self):
@@ -74,32 +78,32 @@ class TestGuanDanGame(GuanDanTestBase):
                 self._get_card('9', 'Clubs'), self._get_card('9', 'Diamonds'),
                 self._get_card('10', 'Hearts'), self._get_card('10', 'Clubs')
             ]
-            self.assertEqual(self.game.get_combination_details(combo), ('tube', 100 + 10, 6))
+            self.assertEqual(self.game.get_combination_details(combo), ('tube', RANK_BASE_TUBE + 10, 6))
 
         with self.subTest(msg="Plate"):
             combo = [
                 self._get_card('J', 'Hearts'), self._get_card('J', 'Spades'), self._get_card('J', 'Clubs'),
                 self._get_card('Q', 'Diamonds'), self._get_card('Q', 'Clubs'), self._get_card('Q', 'Spades')
             ]
-            self.assertEqual(self.game.get_combination_details(combo), ('plate', 120 + 12, 6))
+            self.assertEqual(self.game.get_combination_details(combo), ('plate', RANK_BASE_PLATE + 12, 6))
 
         with self.subTest(msg="Bomb"):
             combo = [
                 self._get_card('A', 'Hearts'), self._get_card('A', 'Spades'),
                 self._get_card('A', 'Clubs'), self._get_card('A', 'Diamonds')
             ]
-            self.assertEqual(self.game.get_combination_details(combo), ('bomb', 300 + 14, 4))
+            self.assertEqual(self.game.get_combination_details(combo), ('bomb', RANK_BASE_BOMB_4 + 14, 4))
 
         with self.subTest(msg="Straight Flush"):
             combo = [
                 self._get_card('3', 'Spades'), self._get_card('4', 'Spades'), self._get_card('5', 'Spades'),
                 self._get_card('6', 'Spades'), self._get_card('7', 'Spades')
             ]
-            self.assertEqual(self.game.get_combination_details(combo), ('straight_flush', 500 + 7, 5))
+            self.assertEqual(self.game.get_combination_details(combo), ('straight_flush', RANK_BASE_STRAIGHT_FLUSH + 7, 5))
 
         with self.subTest(msg="Joker Bomb"):
             combo = [self._get_card('Black Joker', 'Joker'), self._get_card('Red Joker', 'Joker')]
-            self.assertEqual(self.game.get_combination_details(combo), ('joker_bomb', 1000, 2))
+            self.assertEqual(self.game.get_combination_details(combo), ('joker_bomb', RANK_JOKER_BOMB, 2))
 
         with self.subTest(msg="Invalid Combination"):
             combo = [self._get_card('3', 'Hearts'), self._get_card('5', 'Spades')]
@@ -108,7 +112,7 @@ class TestGuanDanGame(GuanDanTestBase):
         with self.subTest(msg="5-Card Bomb"):
             # This test is only possible with a double deck
             combo = [c for c in self.game.deck if c.rank_str == 'A'][:5]
-            self.assertEqual(self.game.get_combination_details(combo), ('bomb', 400 + 14, 5))
+            self.assertEqual(self.game.get_combination_details(combo), ('bomb', RANK_BASE_BOMB_5 + 14, 5))
 
     def test_is_valid_play_on_empty_table(self):
         play = [self._get_card('5', 'Hearts')]
