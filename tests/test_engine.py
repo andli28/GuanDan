@@ -13,21 +13,26 @@ class GuanDanTestBase(unittest.TestCase):
         self.game._assign_card_values()
 
     def _create_test_deck(self):
-        """Creates a predictable deck for testing purposes."""
+        """Creates a predictable double deck for testing purposes."""
         deck = []
-        for suit in SUITS:
-            for rank in RANKS:
-                deck.append(Card(rank, suit))
-        deck.append(Card('Black Joker', 'Joker'))
-        deck.append(Card('Red Joker', 'Joker'))
+        for _ in range(2): # Two decks
+            for suit in SUITS:
+                for rank in RANKS:
+                    deck.append(Card(rank, suit))
+            deck.append(Card('Black Joker', 'Joker'))
+            deck.append(Card('Red Joker', 'Joker'))
         return deck
 
+    def _get_cards(self, rank_str, suit, count=1):
+        """Finds and returns a specific number of cards from the test deck."""
+        cards = [c for c in self.game.deck if c.rank_str == rank_str and c.suit == suit]
+        if len(cards) < count:
+            self.fail(f"Could not find {count} cards of {rank_str} of {suit} in test deck.")
+        return cards[:count]
+
     def _get_card(self, rank_str, suit):
-        """Finds and returns a specific card from the test deck."""
-        card = next((c for c in self.game.deck if c.rank_str == rank_str and c.suit == suit), None)
-        if card is None:
-            self.fail(f"Card {rank_str} of {suit} not found in test deck.")
-        return card
+        """Convenience method to get a single card."""
+        return self._get_cards(rank_str, suit, 1)[0]
 
 class TestGuanDanGame(GuanDanTestBase):
     def test_get_combination_details(self):
@@ -114,6 +119,13 @@ class TestGuanDanGame(GuanDanTestBase):
             combo = [self._get_card('3', 'Hearts'), self._get_card('5', 'Spades')]
             combo_type, _, _ = self.game.get_combination_details(combo)
             self.assertIsNone(combo_type)
+
+        with self.subTest(msg="5-Card Bomb"):
+            # This test is only possible with a double deck
+            combo = self._get_cards('A', 'Hearts', 2) + self._get_cards('A', 'Spades', 2) + self._get_cards('A', 'Clubs', 1)
+            combo_type, _, length = self.game.get_combination_details(combo)
+            self.assertEqual(combo_type, 'bomb')
+            self.assertEqual(length, 5)
 
     def test_is_valid_play_on_empty_table(self):
         play = [self._get_card('5', 'Hearts')]
