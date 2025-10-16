@@ -2,8 +2,9 @@ import unittest
 
 from src.engine import Card, GuanDanGame, SimpleAgent, SUITS, RANKS
 
-class TestGuanDanGame(unittest.TestCase):
+class GuanDanTestBase(unittest.TestCase):
     def setUp(self):
+        # This setup will be inherited by all test classes
         self.game = GuanDanGame(["Player 1", "Player 2", "Player 3", "Player 4"])
         self.game.teams['A']['level'] = 2
         self.game.declarer_team = 'A'
@@ -28,6 +29,7 @@ class TestGuanDanGame(unittest.TestCase):
             self.fail(f"Card {rank_str} of {suit} not found in test deck.")
         return card
 
+class TestGuanDanGame(GuanDanTestBase):
     def test_get_combination_details(self):
         with self.subTest(msg="Single"):
             combo = [self._get_card('3', 'Hearts')]
@@ -113,22 +115,21 @@ class TestGuanDanGame(unittest.TestCase):
             combo_type, _, _ = self.game.get_combination_details(combo)
             self.assertIsNone(combo_type)
 
-    def test_is_valid_play(self):
-        # 1. Play on an empty table (any valid combo is fine)
+    def test_is_valid_play_on_empty_table(self):
         play = [self._get_card('5', 'Hearts')]
         self.assertTrue(self.game.is_valid_play(play))
 
-        # 2. Play a higher-ranking combo of the same type
+    def test_is_valid_play_higher_rank_same_type(self):
         self.game.current_trick.append([self._get_card('6', 'Hearts')])
         play = [self._get_card('7', 'Hearts')]
         self.assertTrue(self.game.is_valid_play(play))
 
-        # 3. Play a lower-ranking combo of the same type
+    def test_is_valid_play_lower_rank_same_type(self):
         self.game.current_trick = [[self._get_card('K', 'Diamonds')]]
         play = [self._get_card('Q', 'Spades')]
         self.assertFalse(self.game.is_valid_play(play))
 
-        # 4. Play a bomb against a non-bomb
+    def test_is_valid_play_bomb_beats_non_bomb(self):
         self.game.current_trick = [[self._get_card('A', 'Spades')]]
         play = [
             self._get_card('3', 'Hearts'), self._get_card('3', 'Spades'),
@@ -136,7 +137,7 @@ class TestGuanDanGame(unittest.TestCase):
         ]
         self.assertTrue(self.game.is_valid_play(play))
 
-        # 5. Play a higher-ranking bomb against a lower-ranking bomb
+    def test_is_valid_play_higher_bomb_beats_lower_bomb(self):
         self.game.current_trick = [[
             self._get_card('4', 'Hearts'), self._get_card('4', 'Spades'),
             self._get_card('4', 'Clubs'), self._get_card('4', 'Diamonds')
@@ -147,7 +148,7 @@ class TestGuanDanGame(unittest.TestCase):
         ]
         self.assertTrue(self.game.is_valid_play(play))
 
-        # 6. Play combo of a different type
+    def test_is_valid_play_different_type_is_invalid(self):
         self.game.current_trick = [[self._get_card('8', 'Hearts'), self._get_card('8', 'Spades')]]
         play = [
             self._get_card('9', 'Hearts'), self._get_card('9', 'Spades'),
@@ -190,31 +191,13 @@ class TestGuanDanGame(unittest.TestCase):
         game_over = self.game.update_levels(rankings)
         self.assertTrue(game_over)
 
-class TestSimpleAgent(unittest.TestCase):
+class TestSimpleAgent(GuanDanTestBase):
     def setUp(self):
-        self.game = GuanDanGame(["Agent", "Player 2", "Player 3", "Player 4"])
-        self.game.teams['A']['level'] = 2
-        self.game.declarer_team = 'A'
-        self.game.deck = self._create_test_deck()
-        self.game._assign_card_values()
-
+        # Call the parent setup first
+        super().setUp()
+        # Additional setup specific to the agent tests
         self.agent = SimpleAgent("Agent", "A")
         self.game.players[0] = self.agent
-
-    def _create_test_deck(self):
-        deck = []
-        for suit in SUITS:
-            for rank in RANKS:
-                deck.append(Card(rank, suit))
-        deck.append(Card('Black Joker', 'Joker'))
-        deck.append(Card('Red Joker', 'Joker'))
-        return deck
-
-    def _get_card(self, rank_str, suit):
-        card = next((c for c in self.game.deck if c.rank_str == rank_str and c.suit == suit), None)
-        if card is None:
-            self.fail(f"Card {rank_str} of {suit} not found in test deck.")
-        return card
 
     def test_find_best_play_selects_lowest_valid_play(self):
         # Give the agent a hand with multiple valid plays

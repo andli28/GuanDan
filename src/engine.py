@@ -380,12 +380,6 @@ if __name__ == "__main__":
             print(f"\nIt's {current_player.name}'s turn. Hand size: {len(current_player.hand)}")
             if game.current_trick:
                  print(f"Current play on table: {[str(c) for c in game.current_trick[-1]]}")
-            
-            # Print current player's hand with card frequencies
-            hand_counter = Counter(str(card) for card in current_player.hand)
-            print(f"{current_player.name}'s hand:")
-            for card_str, freq in hand_counter.items():
-                print(f"  {card_str}: {freq}")
 
             # Agent makes a move
             play = current_player.find_best_play(game)
